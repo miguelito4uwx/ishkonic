@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ISHKONIC — The Performance</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --blue: #1a6fff; --purple: #8b2fff; --pink: #d63aff;
+    --cyan: #00d4ff; --green: #00ff88; --dark: #05030f;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'DM Sans',sans-serif; background:var(--dark); color:#fff; overflow:hidden; height:100vh; width:100vw; }
+
+  .bg-gradient { position:fixed; inset:0; background:linear-gradient(135deg,#050318,#0a0528,#110040,#1a0060,#0a0030); background-size:400% 400%; animation:bgShift 12s ease infinite; z-index:0; }
+  @keyframes bgShift { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+  #particles { position:fixed; inset:0; z-index:1; pointer-events:none; }
+
+  .page { position:fixed; inset:0; z-index:10; display:flex; align-items:center; justify-content:center; opacity:0; pointer-events:none; transition:opacity .5s ease,transform .5s ease; transform:translateY(20px); overflow-y:auto; overflow-x:hidden; }
+  .page.active { opacity:1; pointer-events:all; transform:translateY(0); }
+  .page.exit   { opacity:0; transform:translateY(-20px); }
+
+  /* LOADING */
+  #page-loading { flex-direction:column; background:var(--dark); z-index:100; }
+  .loading-inner { display:flex; flex-direction:column; align-items:flex-start; gap:18px; padding:40px; min-width:320px; }
+  .loading-logo { font-family:'Syne',sans-serif; font-size:clamp(2.5rem,8vw,5rem); font-weight:800; letter-spacing:-.02em; background:linear-gradient(90deg,var(--blue),var(--purple),var(--pink)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin-bottom:30px; animation:logoGlow 2s ease-in-out infinite alternate; }
+  @keyframes logoGlow { from{filter:drop-shadow(0 0 20px rgba(139,47,255,.4))} to{filter:drop-shadow(0 0 50px rgba(214,58,255,.8))} }
+  .load-item { display:flex; align-items:center; gap:14px; font-size:1.1rem; color:rgba(255,255,255,.3); opacity:0; transform:translateX(-20px); transition:all .5s ease; }
+  .load-item.visible { opacity:1; transform:translateX(0); color:rgba(255,255,255,.6); }
+  .load-item.done    { color:rgba(255,255,255,.9); }
+  .load-icon { width:24px; height:24px; border:2px solid rgba(255,255,255,.2); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; flex-shrink:0; transition:all .4s ease; }
+  .load-item.done .load-icon { background:var(--green); border-color:var(--green); box-shadow:0 0 15px rgba(0,255,136,.6); }
+  .load-bar { width:100%; height:3px; background:rgba(255,255,255,.1); border-radius:2px; margin-top:10px; overflow:hidden; }
+  .load-bar-fill { height:100%; background:linear-gradient(90deg,var(--blue),var(--purple),var(--pink)); width:0%; transition:width .5s ease; box-shadow:0 0 10px rgba(139,47,255,.8); }
+  .welcome-msg { font-family:'Syne',sans-serif; font-size:2rem; font-weight:700; background:linear-gradient(90deg,var(--green),var(--cyan)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; opacity:0; margin-top:20px; transform:scale(.8); transition:all .6s cubic-bezier(.34,1.56,.64,1); }
+  .welcome-msg.show { opacity:1; transform:scale(1); }
+
+  /* HOME */
+  #page-home { flex-direction:column; text-align:center; padding:20px; }
+  .home-inner { display:flex; flex-direction:column; align-items:center; gap:30px; z-index:5; position:relative; }
+  .home-title { font-family:'Syne',sans-serif; font-size:clamp(3.5rem,12vw,8rem); font-weight:800; letter-spacing:-.03em; line-height:1; background:linear-gradient(135deg,#fff 0%,var(--cyan) 30%,var(--purple) 60%,var(--pink) 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; animation:titleFloat 4s ease-in-out infinite; filter:drop-shadow(0 0 60px rgba(139,47,255,.4)); }
+  @keyframes titleFloat { 0%,100%{transform:translateY(0) rotate(-.3deg)} 50%{transform:translateY(-8px) rotate(.3deg)} }
+  .home-subtitle { font-family:'Syne',sans-serif; font-size:clamp(1rem,3vw,1.4rem); font-weight:600; letter-spacing:.4em; text-transform:uppercase; color:rgba(255,255,255,.5); margin-top:-20px; }
+  .home-subtitle span { background:linear-gradient(90deg,var(--cyan),var(--purple)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+  .home-buttons { display:flex; flex-direction:column; gap:14px; width:100%; max-width:360px; margin-top:10px; }
+
+  /* BUTTONS */
+  .btn { padding:16px 32px; border:none; border-radius:16px; font-family:'Syne',sans-serif; font-size:1rem; font-weight:700; letter-spacing:.05em; cursor:pointer; position:relative; overflow:hidden; transition:all .3s cubic-bezier(.34,1.56,.64,1); text-decoration:none; display:block; text-align:center; }
+  .btn::before { content:''; position:absolute; inset:0; background:rgba(255,255,255,.1); opacity:0; transition:opacity .3s; }
+  .btn:hover::before { opacity:1; }
+  .btn:hover  { transform:translateY(-3px) scale(1.02); }
+  .btn:active { transform:translateY(0) scale(.97); }
+  .btn-primary   { background:linear-gradient(135deg,var(--blue),var(--purple)); color:#fff; box-shadow:0 4px 30px rgba(139,47,255,.4),inset 0 1px 0 rgba(255,255,255,.2); }
+  .btn-primary:hover  { box-shadow:0 8px 40px rgba(139,47,255,.7),inset 0 1px 0 rgba(255,255,255,.2); }
+  .btn-secondary { background:linear-gradient(135deg,var(--purple),var(--pink)); color:#fff; box-shadow:0 4px 30px rgba(214,58,255,.3),inset 0 1px 0 rgba(255,255,255,.2); }
+  .btn-secondary:hover{ box-shadow:0 8px 40px rgba(214,58,255,.6),inset 0 1px 0 rgba(255,255,255,.2); }
+  .btn-glass { background:rgba(255,255,255,.06); backdrop-filter:blur(10px); color:#fff; border:1px solid rgba(255,255,255,.15); box-shadow:0 4px 20px rgba(0,0,0,.3); }
+  .btn-glass:hover { box-shadow:0 8px 30px rgba(139,47,255,.3); border-color:rgba(139,47,255,.5); }
+  .btn-back { position:fixed; top:20px; left:20px; z-index:200; padding:10px 20px; border-radius:50px; font-size:.85rem; background:rgba(255,255,255,.08); backdrop-filter:blur(12px); border:1px solid rgba(255,255,255,.15); color:#fff; font-family:'Syne',sans-serif; font-weight:600; cursor:pointer; transition:all .3s ease; display:flex; align-items:center; gap:6px; }
+  .btn-back:hover { background:rgba(139,47,255,.3); border-color:var(--purple); transform:translateX(-3px); }
+
+  .page-title { font-family:'Syne',sans-serif; font-size:clamp(2rem,6vw,3.5rem); font-weight:800; letter-spacing:-.02em; background:linear-gradient(135deg,#fff,var(--cyan),var(--purple)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; text-align:center; margin-bottom:8px; }
+  .page-sub { font-size:.9rem; color:rgba(255,255,255,.4); text-align:center; letter-spacing:.1em; text-transform:uppercase; margin-bottom:24px; }
+
+  /* GAMES PAGE */
+  #page-games { align-items:flex-start; justify-content:flex-start; flex-direction:column; padding:80px 20px 20px; overflow-y:auto; height:100vh; }
+  .games-inner { width:100%; max-width:900px; margin:0 auto; padding:20px 0 40px; }
+  .games-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px; margin-top:10px; }
+  .game-card { background:rgba(255,255,255,.04); backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,.1); border-radius:20px; padding:24px; transition:all .3s ease; cursor:pointer; position:relative; overflow:hidden; }
+  .game-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:var(--card-accent,linear-gradient(90deg,var(--blue),var(--purple))); border-radius:20px 20px 0 0; }
+  .game-card:hover { transform:translateY(-4px); border-color:rgba(139,47,255,.3); box-shadow:0 12px 40px rgba(0,0,0,.4); }
+  .game-icon { font-size:2.5rem; margin-bottom:12px; }
+  .game-name { font-family:'Syne',sans-serif; font-size:1.1rem; font-weight:700; margin-bottom:6px; }
+  .game-desc { font-size:.85rem; color:rgba(255,255,255,.5); line-height:1.5; }
+  .game-badge { display:inline-block; margin-top:12px; padding:4px 12px; border-radius:20px; font-size:.75rem; font-weight:600; font-family:'Syne',sans-serif; letter-spacing:.05em; }
+
+  /* MODAL */
+  .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.85); backdrop-filter:blur(10px); z-index:500; display:flex; align-items:center; justify-content:center; opacity:0; pointer-events:none; transition:opacity .3s ease; padding:20px; overflow-y:auto; }
+  .modal-overlay.open { opacity:1; pointer-events:all; }
+  .modal-box { background:#0d0820; border:1px solid rgba(255,255,255,.12); border-radius:28px; padding:36px; max-width:560px; width:100%; position:relative; transform:scale(.9) translateY(20px); transition:transform .4s cubic-bezier(.34,1.56,.64,1); box-shadow:0 20px 80px rgba(0,0,0,.6),0 0 0 1px rgba(139,47,255,.2); max-height:90vh; overflow-y:auto; }
+  .modal-overlay.open .modal-box { transform:scale(1) translateY(0); }
+  .modal-close { position:absolute; top:16px; right:16px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.1); color:#fff; border-radius:50%; width:36px; height:36px; font-size:1.1rem; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .2s; }
+  .modal-close:hover { background:rgba(255,0,0,.2); border-color:rgba(255,0,0,.4); }
+  .modal-title { font-family:'Syne',sans-serif; font-size:1.6rem; font-weight:800; margin-bottom:20px; background:linear-gradient(135deg,#fff,var(--cyan)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+
+  .result-box { background:rgba(0,255,136,.08); border:1px solid rgba(0,255,136,.25); border-radius:16px; padding:20px; margin-top:16px; text-align:center; display:none; }
+  .result-box.show { display:block; }
+  .result-num { font-family:'Syne',sans-serif; font-size:2.5rem; font-weight:800; color:var(--green); }
+
+  /* CLICK */
+  #click-timer-display { font-family:'Syne',sans-serif; font-size:3rem; font-weight:800; background:linear-gradient(90deg,var(--cyan),var(--blue)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin-bottom:10px; text-align:center; }
+  #click-score-display { font-family:'Syne',sans-serif; font-size:1.4rem; color:rgba(255,255,255,.7); margin-bottom:20px; text-align:center; }
+  #click-btn { width:160px; height:160px; border-radius:50%; background:linear-gradient(135deg,var(--blue),var(--purple)); border:none; color:#fff; font-family:'Syne',sans-serif; font-size:1rem; font-weight:700; cursor:pointer; box-shadow:0 0 40px rgba(139,47,255,.5); transition:all .1s ease; margin:10px auto; display:block; }
+  #click-btn:active { transform:scale(.93); }
+  #click-btn:hover  { box-shadow:0 0 60px rgba(139,47,255,.8); }
+
+  /* MEMORY */
+  #memory-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:16px 0; }
+  .mem-card { aspect-ratio:1; border-radius:12px; background:linear-gradient(135deg,#1a0060,#2a0080); border:2px solid rgba(139,47,255,.3); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:transform .1s ease; user-select:none; position:relative; transform-style:preserve-3d; }
+  .mem-card:hover { transform:scale(1.05); }
+  .mem-card-inner { width:100%; height:100%; position:relative; transform-style:preserve-3d; transition:transform .5s cubic-bezier(.4,0,.2,1); border-radius:10px; display:flex; align-items:center; justify-content:center; }
+  .mem-card.flipped .mem-card-inner, .mem-card.matched .mem-card-inner { transform:rotateY(180deg); }
+  .mem-card.matched { border-color:rgba(0,255,136,.5); box-shadow:0 0 20px rgba(0,255,136,.3); }
+  .mem-front,.mem-back { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; backface-visibility:hidden; border-radius:10px; font-size:1.8rem; }
+  .mem-front { background:linear-gradient(135deg,#1a0060,#2a0080); font-size:1.4rem; color:rgba(255,255,255,.2); }
+  .mem-back  { transform:rotateY(180deg); background:linear-gradient(135deg,#0d0040,#160060); }
+  #mem-attempts { font-family:'Syne',sans-serif; font-size:1rem; color:rgba(255,255,255,.6); text-align:center; margin-bottom:8px; }
+
+  /* REACTION */
+  #reaction-area { border-radius:20px; min-height:180px; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:12px; cursor:pointer; margin:16px 0; transition:background .3s ease; border:2px solid rgba(255,255,255,.1); font-family:'Syne',sans-serif; font-weight:700; font-size:1.2rem; text-align:center; padding:20px; user-select:none; }
+  #reaction-area.waiting { background:linear-gradient(135deg,#1a0060,#2a0080); }
+  #reaction-area.ready   { background:linear-gradient(135deg,#ff4444,#ff0066); }
+  #reaction-area.go      { background:linear-gradient(135deg,#00cc44,#00ff88); color:#000; }
+  #reaction-area.result  { background:linear-gradient(135deg,#0066ff,#8b2fff); }
+
+  /* SCRAMBLE */
+  #scramble-word { font-family:'Syne',sans-serif; font-size:3rem; font-weight:800; letter-spacing:.15em; text-align:center; background:linear-gradient(90deg,var(--cyan),var(--purple)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin:16px 0; }
+  #scramble-input { width:100%; padding:14px 18px; border-radius:12px; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.15); color:#fff; font-family:'Syne',sans-serif; font-size:1.1rem; font-weight:600; letter-spacing:.1em; text-align:center; outline:none; transition:border-color .3s; margin-bottom:12px; }
+  #scramble-input:focus { border-color:var(--purple); box-shadow:0 0 20px rgba(139,47,255,.3); }
+  #scramble-feedback { text-align:center; font-family:'Syne',sans-serif; font-weight:700; font-size:1rem; min-height:24px; margin-bottom:8px; }
+  #scramble-score { text-align:center; color:rgba(255,255,255,.6); font-size:.9rem; margin-bottom:4px; }
+
+  /* COLOR */
+  #color-display { width:140px; height:140px; border-radius:50%; margin:20px auto; box-shadow:0 0 40px rgba(0,0,0,.5); border:3px solid rgba(255,255,255,.2); transition:all .4s ease; }
+  .color-options { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:16px 0; }
+  .color-opt { padding:12px 8px; border-radius:10px; border:2px solid rgba(255,255,255,.1); background:rgba(255,255,255,.05); color:#fff; font-family:'Syne',sans-serif; font-size:.8rem; font-weight:600; cursor:pointer; transition:all .2s ease; }
+  .color-opt:hover { border-color:var(--purple); background:rgba(139,47,255,.2); transform:scale(1.05); }
+  #color-streak { font-family:'Syne',sans-serif; font-size:1rem; color:var(--cyan); margin-top:8px; text-align:center; }
+
+  /* ════ SPEED TYPING ════ */
+  #type-display { background:rgba(255,255,255,.06); border-radius:12px; padding:16px; margin:12px 0; font-size:1.15rem; line-height:1.8; letter-spacing:.04em; border:1px solid rgba(255,255,255,.1); min-height:60px; }
+  .type-char.correct { color:var(--green); }
+  .type-char.wrong   { color:#ff4444; background:rgba(255,0,0,.1); border-radius:2px; }
+  .type-char.current { border-bottom:2px solid var(--cyan); color:#fff; }
+  .type-char.pending { color:rgba(255,255,255,.3); }
+  #type-input { width:100%; padding:12px 16px; border-radius:12px; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.15); color:#fff; font-family:'DM Sans',sans-serif; font-size:1rem; outline:none; transition:border-color .3s; margin-bottom:10px; }
+  #type-input:focus { border-color:var(--purple); }
+  #type-stats { display:flex; gap:20px; justify-content:center; font-family:'Syne',sans-serif; font-size:.9rem; color:rgba(255,255,255,.6); margin-bottom:12px; }
+  #type-stats span { display:flex; flex-direction:column; align-items:center; gap:2px; }
+  #type-stats strong { color:#fff; font-size:1.3rem; }
+
+  /* typing results screen */
+  #type-results-screen { display:none; flex-direction:column; align-items:center; gap:20px; text-align:center; }
+  #type-results-screen.show { display:flex; animation:resultPop .5s cubic-bezier(.34,1.56,.64,1) forwards; }
+  @keyframes resultPop { from{opacity:0;transform:scale(.85)} to{opacity:1;transform:scale(1)} }
+  .type-results-title { font-family:'Syne',sans-serif; font-size:1.5rem; font-weight:800; background:linear-gradient(135deg,var(--green),var(--cyan)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+  .type-stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; width:100%; }
+  .type-stat-card { background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1); border-radius:16px; padding:18px 14px; display:flex; flex-direction:column; align-items:center; gap:4px; }
+  .type-stat-card .ts-label { font-size:.78rem; color:rgba(255,255,255,.4); letter-spacing:.08em; text-transform:uppercase; }
+  .type-stat-card .ts-value { font-family:'Syne',sans-serif; font-size:2.2rem; font-weight:800; }
+  .ts-green  { background:linear-gradient(135deg,var(--green),var(--cyan)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+  .ts-purple { background:linear-gradient(135deg,var(--purple),var(--pink)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+  .ts-white  { background:linear-gradient(135deg,#fff,rgba(255,255,255,.7)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+  .type-rating { font-family:'Syne',sans-serif; font-size:1.1rem; font-weight:700; padding:10px 22px; border-radius:30px; background:linear-gradient(135deg,rgba(139,47,255,.2),rgba(26,111,255,.2)); border:1px solid rgba(139,47,255,.35); color:#fff; }
+  #tr-phrase { font-size:.82rem; color:rgba(255,255,255,.35); font-style:italic; border-top:1px solid rgba(255,255,255,.08); padding-top:12px; width:100%; }
+
+  /* locked state */
+  #type-locked { display:none; flex-direction:column; align-items:center; justify-content:center; gap:14px; text-align:center; padding:20px 0; }
+  #type-locked.show { display:flex; }
+  .lock-icon { font-size:3rem; }
+  .lock-msg { font-family:'Syne',sans-serif; font-size:1.1rem; font-weight:700; color:rgba(255,255,255,.75); }
+  .lock-sub  { font-size:.83rem; color:rgba(255,255,255,.4); line-height:1.6; }
+
+  /* ════ GUESS THE ARTIST ════ */
+  #artist-game-area { display:flex; flex-direction:column; gap:14px; }
+  .artist-lyrics-box { background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.12); border-radius:16px; padding:20px 24px; text-align:center; font-size:1.05rem; line-height:1.85; color:rgba(255,255,255,.85); font-style:italic; min-height:90px; display:flex; align-items:center; justify-content:center; }
+  .artist-timer-wrap { width:100%; height:10px; background:rgba(255,255,255,.08); border-radius:6px; overflow:hidden; }
+  .artist-timer-bar  { height:100%; width:100%; background:linear-gradient(90deg,var(--green),var(--cyan),var(--blue)); border-radius:6px; transition:width .25s linear; box-shadow:0 0 12px rgba(0,212,255,.5); }
+  .artist-timer-bar.warn { background:linear-gradient(90deg,#ff6b35,#ff2d55); box-shadow:0 0 12px rgba(255,45,85,.6); }
+  .artist-timer-num  { font-family:'Syne',sans-serif; font-size:.85rem; font-weight:700; color:rgba(255,255,255,.5); text-align:right; margin-top:4px; }
+  .artist-options { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .artist-opt { padding:14px 10px; border-radius:14px; border:2px solid rgba(255,255,255,.1); background:rgba(255,255,255,.04); color:#fff; font-family:'Syne',sans-serif; font-size:.9rem; font-weight:600; cursor:pointer; transition:all .2s ease; text-align:center; }
+  .artist-opt:hover   { border-color:rgba(139,47,255,.5); background:rgba(139,47,255,.15); }
+  .artist-opt.correct { background:rgba(0,255,136,.15); border-color:var(--green); color:var(--green); }
+  .artist-opt.wrong   { background:rgba(255,68,68,.12); border-color:#ff4444; color:#ff7070; }
+  #artist-score-row { display:flex; justify-content:space-between; align-items:center; }
+  #artist-score { font-family:'Syne',sans-serif; font-size:1rem; color:rgba(255,255,255,.6); }
+  #artist-round { font-family:'Syne',sans-serif; font-size:.9rem; color:var(--cyan); }
+  #artist-feedback { font-family:'Syne',sans-serif; font-weight:700; font-size:.95rem; text-align:center; min-height:22px; }
+
+  /* QUIZ */
+  #page-quiz { align-items:flex-start; flex-direction:column; padding:80px 20px 20px; overflow-y:auto; height:100vh; }
+  .quiz-inner { max-width:680px; width:100%; margin:0 auto; padding:20px 0 60px; }
+  .quiz-question { font-family:'Syne',sans-serif; font-size:clamp(1.2rem,3vw,1.6rem); font-weight:700; margin-bottom:24px; color:rgba(255,255,255,.9); line-height:1.4; }
+  .quiz-options { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:24px; }
+  @media(max-width:480px){.quiz-options{grid-template-columns:1fr}}
+  .quiz-opt { padding:14px 18px; border-radius:14px; background:rgba(255,255,255,.04); border:2px solid rgba(255,255,255,.08); color:rgba(255,255,255,.8); font-family:'DM Sans',sans-serif; font-size:.95rem; cursor:pointer; transition:all .25s ease; display:flex; align-items:center; gap:12px; }
+  .quiz-opt:hover    { background:rgba(139,47,255,.15); border-color:rgba(139,47,255,.4); color:#fff; }
+  .quiz-opt.selected { background:rgba(139,47,255,.25); border-color:var(--purple); color:#fff; box-shadow:0 0 20px rgba(139,47,255,.2); }
+  .quiz-checkbox { width:20px; height:20px; border-radius:6px; border:2px solid rgba(255,255,255,.2); display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:all .2s; font-size:.75rem; }
+  .quiz-opt.selected .quiz-checkbox { background:var(--purple); border-color:var(--purple); }
+  .quiz-result { background:linear-gradient(135deg,rgba(139,47,255,.15),rgba(26,111,255,.15)); border:1px solid rgba(139,47,255,.3); border-radius:20px; padding:30px; text-align:center; display:none; animation:resultPop .5s cubic-bezier(.34,1.56,.64,1) forwards; }
+  .quiz-result.show { display:block; }
+  .quiz-result-score { font-family:'Syne',sans-serif; font-size:3.5rem; font-weight:800; background:linear-gradient(135deg,var(--green),var(--cyan)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin-bottom:8px; }
+  .quiz-result-text { font-size:1rem; color:rgba(255,255,255,.7); }
+
+  ::-webkit-scrollbar { width:6px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:rgba(139,47,255,.4); border-radius:3px; }
+  .ripple { position:absolute; border-radius:50%; background:rgba(255,255,255,.25); animation:rippleAnim .6s ease-out forwards; pointer-events:none; transform:scale(0); }
+  @keyframes rippleAnim { to{transform:scale(4);opacity:0} }
+  .stat-chip { display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border-radius:20px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); font-family:'Syne',sans-serif; font-size:.82rem; color:rgba(255,255,255,.6); margin:4px 4px 4px 0; }
+  @media(max-width:600px){.games-grid{grid-template-columns:1fr} #memory-grid{gap:6px} .type-stat-grid{grid-template-columns:1fr 1fr} .artist-options{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<div class="bg-gradient"></div>
+<canvas id="particles"></canvas>
+
+<!-- LOADING -->
+<div class="page active" id="page-loading">
+  <div class="loading-inner">
+    <div class="loading-logo">ISHKONIC</div>
+    <div class="load-item" id="li-1"><div class="load-icon" id="ic-1">◌</div><span>Loading dances...</span></div>
+    <div class="load-item" id="li-2"><div class="load-icon" id="ic-2">◌</div><span>Loading music...</span></div>
+    <div class="load-item" id="li-3"><div class="load-icon" id="ic-3">◌</div><span>Loading Katseye...</span></div>
+    <div class="load-item" id="li-3"><div class="load-icon" id="ic-3">◌</div><span>Loading Great Memories...</span></div>
+
+    <div class="load-item" id="li-4"><div class="load-icon" id="ic-4">◌</div><span>Loading your device settings...</span></div>
+    <div class="load-bar"><div class="load-bar-fill" id="load-bar-fill"></div></div>
+    <div class="welcome-msg" id="welcome-msg">🎉 Welcome In!</div>
+  </div>
+</div>
+
+<!-- HOME -->
+<div class="page" id="page-home">
+  <div class="home-inner">
+    <div>
+      <div class="home-title">ISHKONIC</div>
+      <div class="home-subtitle"><span>The Performance</span></div>
+    </div>
+    <div class="home-buttons">
+      <!--
+        ╔══════════════════════════════════════════════════╗
+        ║  TO CHANGE BUTTON LINKS, EDIT THE 3 URLS BELOW  ║
+        ║  in the <script> block — search for MENU_URL    ║
+        ╚══════════════════════════════════════════════════╝
+      -->
+      <button class="btn btn-primary"   id="menu-btn-1" onclick="rippleBtn(event)">🎮 Play Mini Games</button>
+      <button class="btn btn-secondary" id="menu-btn-2" onclick="rippleBtn(event)">🧠 Ishkonic 2 Quiz</button>
+      <button class="btn btn-glass"     id="menu-btn-3" onclick="rippleBtn(event)">✨ Ishkonic +</button>
+    </div>
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
+      <span class="stat-chip">🎵 Live Event</span>
+      <span class="stat-chip">💜 Fan Experience</span>
+      <span class="stat-chip">🌟 Interactive</span>
+    </div>
+  </div>
+</div>
+
+<!-- GAMES PAGE -->
+<div class="page" id="page-games">
+  <button class="btn-back" onclick="navTo('home')">← Menu</button>
+  <div class="games-inner">
+    <div class="page-title">Mini Games</div>
+    <div class="page-sub">Pick a game and play!</div>
+    <div class="games-grid">
+      <div class="game-card" style="--card-accent:linear-gradient(90deg,#1a6fff,#8b2fff)" onclick="openGame('click')">
+        <div class="game-icon">⚡</div><div class="game-name">Click Speed</div>
+        <div class="game-desc">How many times can you click in 10 seconds?</div>
+        <div class="game-badge" style="background:rgba(26,111,255,.2);color:#1a6fff;border:1px solid rgba(26,111,255,.3)">Speed</div>
+      </div>
+      <div class="game-card" style="--card-accent:linear-gradient(90deg,#8b2fff,#d63aff)" onclick="openGame('memory')">
+        <div class="game-icon">🧩</div><div class="game-name">Memory Match</div>
+        <div class="game-desc">Match all emoji pairs with fewest attempts!</div>
+        <div class="game-badge" style="background:rgba(139,47,255,.2);color:#8b2fff;border:1px solid rgba(139,47,255,.3)">Memory</div>
+      </div>
+      <div class="game-card" style="--card-accent:linear-gradient(90deg,#d63aff,#00d4ff)" onclick="openGame('reaction')">
+        <div class="game-icon">🟢</div><div class="game-name">Reaction Time</div>
+        <div class="game-desc">Click the moment it turns green. How fast are you?</div>
+        <div class="game-badge" style="background:rgba(0,212,255,.15);color:#00d4ff;border:1px solid rgba(0,212,255,.3)">Reflex</div>
+      </div>
+      <div class="game-card" style="--card-accent:linear-gradient(90deg,#00d4ff,#00ff88)" onclick="openGame('scramble')">
+        <div class="game-icon">🔤</div><div class="game-name">Word Scramble</div>
+        <div class="game-desc">Unscramble K-pop song titles as fast as you can!</div>
+        <div class="game-badge" style="background:rgba(0,255,136,.15);color:#00ff88;border:1px solid rgba(0,255,136,.3)">Puzzle</div>
+      </div>
+      <div class="game-card" style="--card-accent:linear-gradient(90deg,#ff6b35,#ff2d55)" onclick="openGame('color')">
+        <div class="game-icon">🎨</div><div class="game-name">Color Guess</div>
+        <div class="game-desc">Identify the color from its RGB value. Build a streak!</div>
+        <div class="game-badge" style="background:rgba(255,107,53,.15);color:#ff6b35;border:1px solid rgba(255,107,53,.3)">Trivia</div>
+      </div>
+      <div class="game-card" style="--card-accent:linear-gradient(90deg,#ffd700,#ff9500)" onclick="openGame('type')">
+        <div class="game-icon">⌨️</div><div class="game-name">Speed Typing</div>
+        <div class="game-desc">Type the phrase fast. One shot — results screen awaits!</div>
+        <div class="game-badge" style="background:rgba(255,215,0,.15);color:#ffd700;border:1px solid rgba(255,215,0,.3)">Typing</div>
+      </div>
+      <div class="game-card" style="--card-accent:linear-gradient(90deg,#ff2d9b,#8b2fff)" onclick="openGame('artist')">
+        <div class="game-icon">🎤</div><div class="game-name">Guess the Artist</div>
+        <div class="game-desc">Read the lyrics and name the artist before 15 seconds is up!</div>
+        <div class="game-badge" style="background:rgba(255,45,155,.15);color:#ff2d9b;border:1px solid rgba(255,45,155,.3)">Music</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- QUIZ PAGE -->
+<div class="page" id="page-quiz">
+  <button class="btn-back" onclick="navTo('home')">← Menu</button>
+  <div class="quiz-inner">
+    <div class="page-title">Ishkonic 2 Quiz</div>
+    <div class="page-sub">Test Your Knowledge</div>
+    <div class="quiz-question">Which songs will be performed at Ishkonic 2? Select all that apply:</div>
+    <div class="quiz-options" id="quiz-options"></div>
+    <button class="btn btn-primary" onclick="submitQuiz()" style="width:100%;margin-bottom:20px;">Submit Answers</button>
+    <div class="quiz-result" id="quiz-result">
+      <div class="quiz-result-score" id="quiz-score-display">0/7</div>
+      <div class="quiz-result-text"  id="quiz-result-text"></div>
+      <button class="btn btn-glass"  onclick="resetQuiz()" style="margin-top:16px;width:100%;">Try Again</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODALS ═══ -->
+
+<!-- Click Speed -->
+<div class="modal-overlay" id="modal-click">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal('click')">✕</button>
+    <div class="modal-title">⚡ Click Speed</div>
+    <div style="text-align:center;padding:10px 0">
+      <div id="click-timer-display">10</div>
+      <div id="click-score-display">Clicks: 0</div>
+      <button id="click-btn" onclick="clickGame()">Click Me!</button>
+      <div class="result-box" id="click-result">
+        <div style="color:rgba(255,255,255,.6);font-size:.9rem;margin-bottom:4px">Final Score</div>
+        <div class="result-num" id="click-final">0</div>
+        <div style="color:rgba(255,255,255,.5);font-size:.85rem;margin-top:4px">clicks in 10 seconds</div>
+      </div>
+      <button class="btn btn-primary" onclick="startClickGame()" style="margin-top:16px;width:100%" id="click-start-btn">Start Game</button>
+    </div>
+  </div>
+</div>
+
+<!-- Memory Match -->
+<div class="modal-overlay" id="modal-memory">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal('memory')">✕</button>
+    <div class="modal-title">🧩 Memory Match</div>
+    <div id="mem-attempts">Attempts: 0</div>
+    <div id="memory-grid"></div>
+    <div class="result-box" id="mem-result">
+      <div style="color:rgba(255,255,255,.6);font-size:.9rem;margin-bottom:4px">Completed in</div>
+      <div class="result-num" id="mem-final">0</div>
+      <div style="color:rgba(255,255,255,.5);font-size:.85rem;margin-top:4px">attempts</div>
+    </div>
+    <button class="btn btn-primary" onclick="startMemoryGame()" style="margin-top:16px;width:100%">Restart</button>
+  </div>
+</div>
+
+<!-- Reaction Time -->
+<div class="modal-overlay" id="modal-reaction">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal('reaction')">✕</button>
+    <div class="modal-title">🟢 Reaction Time</div>
+    <div id="reaction-area" class="waiting" onclick="handleReaction()">
+      <div id="reaction-msg">Click to start!</div>
+      <div id="reaction-sub" style="font-size:.85rem;color:rgba(255,255,255,.5);font-family:'DM Sans';font-weight:400">Wait for green, then click as fast as you can</div>
+    </div>
+    <div id="reaction-results" style="text-align:center;display:none">
+      <div style="color:rgba(255,255,255,.6);font-size:.9rem;margin-bottom:4px">Your Reaction Time</div>
+      <div class="result-num" id="reaction-time-display" style="color:var(--cyan)">0</div>
+      <div style="color:rgba(255,255,255,.5);font-size:.85rem">milliseconds</div>
+      <div id="reaction-rating" style="font-family:'Syne',sans-serif;font-weight:700;margin-top:8px;font-size:1rem"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Word Scramble -->
+<div class="modal-overlay" id="modal-scramble">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal('scramble')">✕</button>
+    <div class="modal-title">🔤 Word Scramble</div>
+    <div id="scramble-score">Score: 0 | Round: 1/8</div>
+    <div id="scramble-word">?????</div>
+    <input type="text" id="scramble-input" placeholder="Type your answer..." oninput="checkScramble()" autocomplete="off"/>
+    <div id="scramble-feedback"></div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-glass"    onclick="scrambleSkip()"      style="flex:1">Skip</button>
+      <button class="btn btn-primary"  onclick="startScrambleGame()" style="flex:1">Restart</button>
+    </div>
+    <div class="result-box" id="scramble-result" style="margin-top:12px">
+      <div style="color:rgba(255,255,255,.6);font-size:.9rem;margin-bottom:4px">Final Score</div>
+      <div class="result-num" id="scramble-final">0</div>
+      <div style="color:rgba(255,255,255,.5);font-size:.85rem;margin-top:4px">out of 8</div>
+    </div>
+  </div>
+</div>
+
+<!-- Color Guess -->
+<div class="modal-overlay" id="modal-color">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal('color')">✕</button>
+    <div class="modal-title">🎨 Color Guess</div>
+    <div id="color-rgb-display" style="font-family:'Syne',sans-serif;font-size:1.2rem;font-weight:700;text-align:center;color:rgba(255,255,255,.8)">RGB(???,???,???)</div>
+    <div id="color-display"></div>
+    <div class="color-options" id="color-options"></div>
+    <div id="color-streak">🔥 Streak: 0</div>
+    <div class="result-box" id="color-result"><div id="color-result-msg" style="font-size:.9rem"></div></div>
+  </div>
+</div>
+
+<!-- Speed Typing -->
+<div class="modal-overlay" id="modal-type">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal('type')">✕</button>
+    <div class="modal-title">⌨️ Speed Typing</div>
+
+    <!-- locked banner (shown after test done) -->
+    <div id="type-locked">
+      <div class="lock-icon">🔒</div>
+      <div class="lock-msg">Test Complete — One Shot Only!</div>
+      <div class="lock-sub">You already took this test this session.<br>Your results are saved below.</div>
+    </div>
+
+    <!-- active typing area -->
+    <div id="type-active-area">
+      <div id="type-display"></div>
+      <input type="text" id="type-input" placeholder="Start typing the phrase above..." oninput="handleType()" autocomplete="off" spellcheck="false"/>
+      <div id="type-stats">
+        <span><strong id="type-wpm">—</strong> WPM</span>
+        <span><strong id="type-acc">—</strong> ACC%</span>
+        <span><strong id="type-time">30</strong> SEC</span>
+      </div>
+    </div>
+
+    <!-- results screen -->
+    <div id="type-results-screen">
+      <div class="type-results-title">🎉 Test Complete!</div>
+      <div class="type-stat-grid">
+        <div class="type-stat-card"><span class="ts-label">WPM</span><span class="ts-value ts-green"  id="tr-wpm">0</span></div>
+        <div class="type-stat-card"><span class="ts-label">Accuracy</span><span class="ts-value ts-purple" id="tr-acc">0%</span></div>
+        <div class="type-stat-card"><span class="ts-label">Time Taken</span><span class="ts-value ts-white"  id="tr-time">0s</span></div>
+        <div class="type-stat-card"><span class="ts-label">Characters</span><span class="ts-value ts-white"  id="tr-chars">0</span></div>
+      </div>
+      <div class="type-rating" id="tr-rating">⭐ Nice job!</div>
+      <div id="tr-phrase"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Guess the Artist -->
+<div class="modal-overlay" id="modal-artist">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal('artist')">✕</button>
+    <div class="modal-title">🎤 Guess the Artist</div>
+    <div id="artist-game-area">
+      <div id="artist-score-row">
+        <span id="artist-score">Score: 0</span>
+        <span id="artist-round">Round 1 / 8</span>
+      </div>
+      <div class="artist-lyrics-box" id="artist-lyrics">Loading...</div>
+      <div>
+        <div class="artist-timer-wrap"><div class="artist-timer-bar" id="artist-timer-bar"></div></div>
+        <div class="artist-timer-num" id="artist-timer-num">15s</div>
+      </div>
+      <div id="artist-feedback"></div>
+      <div class="artist-options" id="artist-options"></div>
+      <div class="result-box" id="artist-result">
+        <div style="color:rgba(255,255,255,.6);font-size:.9rem;margin-bottom:4px">Final Score</div>
+        <div class="result-num" id="artist-final">0</div>
+        <div style="color:rgba(255,255,255,.5);font-size:.85rem;margin-top:4px">out of 8</div>
+        <button class="btn btn-primary" onclick="startArtistGame()" style="margin-top:14px;width:100%">Play Again</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════
+//  ▼▼▼  CHANGE THE 3 MENU BUTTON URLS RIGHT HERE  ▼▼▼
+// ══════════════════════════════════════════════════════
+const MENU_URL_1 = 'ishkonic.com';   // 🎮 Play Mini Games
+const MENU_URL_2 = 'ishkonic.com';   // 🧠 Ishkonic 2 Quiz
+const MENU_URL_3 = 'ishkonic.com';   // ✨ Ishkonic +
+// ══════════════════════════════════════════════════════
+
+function fixUrl(u) { return u.startsWith('http') ? u : 'https://'+u; }
+function attachMenuBtn(id, url, inAppPage) {
+  const btn = document.getElementById(id);
+  btn.onclick = function(e) {
+    rippleBtn(e);
+    if (inAppPage) { navTo(inAppPage); }
+    else { window.open(fixUrl(url), '_blank'); }
+  };
+}
+attachMenuBtn('menu-btn-1', MENU_URL_1, 'games');   // Goes to in-app games page
+attachMenuBtn('menu-btn-2', MENU_URL_2, 'quiz');    // Goes to in-app quiz page
+attachMenuBtn('menu-btn-3', MENU_URL_3, null);      // Opens external link
+
+// ──────── PARTICLES ────────
+const canvas = document.getElementById('particles'), ctx = canvas.getContext('2d');
+let particles = [];
+function resizeCanvas() { canvas.width=window.innerWidth; canvas.height=window.innerHeight; }
+resizeCanvas(); window.addEventListener('resize', resizeCanvas);
+function makeP() { return { x:Math.random()*canvas.width, y:Math.random()*canvas.height, r:Math.random()*2+.5, dx:(Math.random()-.5)*.4, dy:-Math.random()*.6-.2, alpha:Math.random()*.5+.1, color:['#1a6fff','#8b2fff','#d63aff','#00d4ff'][Math.floor(Math.random()*4)] }; }
+for(let i=0;i<120;i++) particles.push(makeP());
+function animP() { ctx.clearRect(0,0,canvas.width,canvas.height); particles.forEach((p,i)=>{ ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fillStyle=p.color; ctx.globalAlpha=p.alpha; ctx.fill(); p.x+=p.dx; p.y+=p.dy; p.alpha-=.001; if(p.alpha<=0||p.y<-10) particles[i]=makeP(); }); ctx.globalAlpha=1; requestAnimationFrame(animP); } animP();
+
+// ──────── NAV ────────
+let currentPage = 'loading';
+function navTo(page) {
+  const cur=document.getElementById('page-'+currentPage), next=document.getElementById('page-'+page);
+  if(!next) return; cur.classList.add('exit');
+  setTimeout(()=>{ cur.classList.remove('active','exit'); next.classList.add('active'); currentPage=page; }, 450);
+}
+function rippleBtn(e) {
+  const btn=e.currentTarget; const r=document.createElement('span'); r.className='ripple';
+  const sz=Math.max(btn.offsetWidth,btn.offsetHeight); const rect=btn.getBoundingClientRect();
+  r.style.cssText=`width:${sz}px;height:${sz}px;left:${e.clientX-rect.left-sz/2}px;top:${e.clientY-rect.top-sz/2}px`;
+  btn.appendChild(r); setTimeout(()=>r.remove(),700);
+}
+
+// ──────── LOADER ────────
+function runLoader() {
+  let i=0; const items=[{li:'li-1',ic:'ic-1'},{li:'li-2',ic:'ic-2'},{li:'li-3',ic:'ic-3'},{li:'li-4',ic:'ic-4'}];
+  function step() {
+    if(i<items.length) {
+      document.getElementById(items[i].li).classList.add('visible');
+      setTimeout(()=>{ document.getElementById(items[i].li).classList.add('done'); document.getElementById(items[i].ic).textContent='✓'; document.getElementById('load-bar-fill').style.width=((i+1)/items.length*100)+'%'; i++; setTimeout(step,450); }, 650);
+    } else { setTimeout(()=>{ document.getElementById('welcome-msg').classList.add('show'); setTimeout(()=>navTo('home'),1200); },400); }
+  } setTimeout(step,400);
+}
+window.addEventListener('load', runLoader);
+
+// ──────── MODALS ────────
+function openGame(name) {
+  document.getElementById('modal-'+name).classList.add('open');
+  if(name==='memory')   startMemoryGame();
+  if(name==='scramble') startScrambleGame();
+  if(name==='color')    startColorGame();
+  if(name==='type')     initTypeGame();
+  if(name==='reaction') resetReactionGame();
+  if(name==='click')    resetClickGame();
+  if(name==='artist')   startArtistGame();
+}
+function closeModal(name) {
+  document.getElementById('modal-'+name).classList.remove('open');
+  if(name==='artist') clearArtistTimer();
+  if(name==='click' && clickTimer) { clearInterval(clickTimer); clickRunning=false; }
+}
+
+// ════════════════════════════════════
+// G1 — CLICK SPEED
+// ════════════════════════════════════
+let clickCount=0, clickTimer=null, clickRunning=false;
+function resetClickGame() {
+  clickCount=0; clickRunning=false;
+  if(clickTimer){clearInterval(clickTimer);clickTimer=null;}
+  document.getElementById('click-timer-display').textContent='10';
+  document.getElementById('click-score-display').textContent='Clicks: 0';
+  document.getElementById('click-result').classList.remove('show');
+  document.getElementById('click-start-btn').style.display='block';
+  document.getElementById('click-btn').textContent='Click Me!';
+}
+function startClickGame() {
+  resetClickGame(); clickRunning=true;
+  document.getElementById('click-start-btn').style.display='none';
+  let t=10;
+  clickTimer=setInterval(()=>{ t--; document.getElementById('click-timer-display').textContent=t;
+    if(t<=0){ clearInterval(clickTimer); clickRunning=false;
+      document.getElementById('click-btn').textContent='⏱️ Done!';
+      document.getElementById('click-final').textContent=clickCount;
+      document.getElementById('click-result').classList.add('show');
+      document.getElementById('click-start-btn').style.display='block';
+      document.getElementById('click-start-btn').textContent='Play Again';
+    } },1000);
+}
+function clickGame() {
+  if(!clickRunning) return; clickCount++;
+  document.getElementById('click-score-display').textContent='Clicks: '+clickCount;
+  const b=document.getElementById('click-btn'); b.style.transform='scale(.92)'; setTimeout(()=>b.style.transform='',80);
+}
+
+// ════════════════════════════════════
+// G2 — MEMORY MATCH
+// ════════════════════════════════════
+const memE=['🎵','🎤','💃','🌟','🎶','🔥','💜','🎭'];
+let memF=[],memM=0,memA=0,memL=false;
+function startMemoryGame() {
+  memM=0;memA=0;memF=[];memL=false;
+  document.getElementById('mem-attempts').textContent='Attempts: 0';
+  document.getElementById('mem-result').classList.remove('show');
+  const g=document.getElementById('memory-grid'); g.innerHTML='';
+  [...memE,...memE].sort(()=>Math.random()-.5).forEach(emoji=>{
+    const c=document.createElement('div'); c.className='mem-card'; c.dataset.emoji=emoji;
+    c.innerHTML=`<div class="mem-card-inner"><div class="mem-front">?</div><div class="mem-back">${emoji}</div></div>`;
+    c.addEventListener('click',()=>flipCard(c)); g.appendChild(c);
+  });
+}
+function flipCard(card) {
+  if(memL||card.classList.contains('flipped')||card.classList.contains('matched')) return;
+  card.classList.add('flipped'); memF.push(card);
+  if(memF.length===2) {
+    memA++; document.getElementById('mem-attempts').textContent='Attempts: '+memA; memL=true;
+    const [a,b]=memF;
+    if(a.dataset.emoji===b.dataset.emoji) {
+      a.classList.add('matched'); b.classList.add('matched'); memM++; memF=[]; memL=false;
+      if(memM===memE.length) setTimeout(()=>{ document.getElementById('mem-final').textContent=memA; document.getElementById('mem-result').classList.add('show'); },500);
+    } else { setTimeout(()=>{ a.classList.remove('flipped'); b.classList.remove('flipped'); memF=[]; memL=false; },1000); }
+  }
+}
+
+// ════════════════════════════════════
+// G3 — REACTION TIME
+// ════════════════════════════════════
+let rState='idle',rTO=null,rStart=null;
+function resetReactionGame() {
+  rState='idle'; if(rTO)clearTimeout(rTO);
+  document.getElementById('reaction-area').className='waiting';
+  document.getElementById('reaction-msg').textContent='Click to start!';
+  const sub=document.getElementById('reaction-sub');
+  sub.textContent='Wait for green, then click as fast as you can'; sub.style.display='block';
+  document.getElementById('reaction-results').style.display='none';
+}
+function handleReaction() {
+  if(rState==='idle') {
+    rState='waiting'; document.getElementById('reaction-area').className='ready';
+    document.getElementById('reaction-msg').textContent='⚠️ Wait for it...';
+    document.getElementById('reaction-sub').style.display='none';
+    rTO=setTimeout(()=>{ document.getElementById('reaction-area').className='go'; document.getElementById('reaction-msg').textContent='🟢 CLICK NOW!'; rState='go'; rStart=Date.now(); },1500+Math.random()*3500);
+  } else if(rState==='waiting') {
+    clearTimeout(rTO); rState='idle'; document.getElementById('reaction-area').className='waiting';
+    document.getElementById('reaction-msg').textContent='❌ Too early! Click to retry.';
+    document.getElementById('reaction-sub').style.display='block';
+    document.getElementById('reaction-sub').textContent="Don't click until it turns green!";
+  } else if(rState==='go') {
+    const ms=Date.now()-rStart; rState='done';
+    document.getElementById('reaction-area').className='result';
+    document.getElementById('reaction-msg').textContent='✅ Click to play again';
+    document.getElementById('reaction-sub').style.display='none';
+    document.getElementById('reaction-time-display').textContent=ms;
+    document.getElementById('reaction-rating').textContent=ms<150?'🔥 Superhuman!':ms<220?'⚡ Lightning Fast!':ms<300?'✨ Great!':ms<400?'👍 Good':'🐢 Keep practicing';
+    document.getElementById('reaction-results').style.display='block';
+  } else if(rState==='done') { document.getElementById('reaction-results').style.display='none'; resetReactionGame(); }
+}
+
+// ════════════════════════════════════
+// G4 — WORD SCRAMBLE
+// ════════════════════════════════════
+const scrW=[{w:'DEBUT'},{w:'FEARLESS'},{w:'ANTIFRAGILE'},{w:'WORK'},{w:'GABRIELA'},{w:'SUPERSHYY'},{w:'HYPEBOYYYY'},{w:'LOVEYOU'}];
+let scrIdx=0,scrScore=0,scrActive=false;
+function scramble(s){let a=s.split('');for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a.join('')===s&&s.length>1?scramble(s):a.join('');}
+function startScrambleGame(){scrIdx=0;scrScore=0;scrActive=true;document.getElementById('scramble-result').classList.remove('show');document.getElementById('scramble-feedback').textContent='';loadScrRound();}
+function loadScrRound(){
+  if(scrIdx>=scrW.length){scrActive=false;document.getElementById('scramble-final').textContent=scrScore;document.getElementById('scramble-result').classList.add('show');document.getElementById('scramble-word').textContent='🎉';document.getElementById('scramble-score').textContent=`Game Over! ${scrScore}/${scrW.length}`;return;}
+  document.getElementById('scramble-word').textContent=scramble(scrW[scrIdx].w);
+  document.getElementById('scramble-score').textContent=`Score: ${scrScore} | Round: ${scrIdx+1}/${scrW.length}`;
+  document.getElementById('scramble-input').value='';document.getElementById('scramble-feedback').textContent='';
+}
+function checkScramble(){if(!scrActive)return;const v=document.getElementById('scramble-input').value.toUpperCase().trim();if(v===scrW[scrIdx].w){scrScore++;document.getElementById('scramble-feedback').style.color='var(--green)';document.getElementById('scramble-feedback').textContent='✅ Correct!';scrIdx++;setTimeout(loadScrRound,700);}}
+function scrambleSkip(){if(!scrActive)return;document.getElementById('scramble-feedback').style.color='#ff6b6b';document.getElementById('scramble-feedback').textContent='❌ It was: '+scrW[scrIdx].w;scrIdx++;setTimeout(loadScrRound,900);}
+
+// ════════════════════════════════════
+// G5 — COLOR GUESS
+// ════════════════════════════════════
+let colorStreak=0,colorCorrect=null;
+const cNames=[{n:'Crimson Red',r:[180,255],g:[0,50],b:[0,50]},{n:'Royal Blue',r:[0,80],g:[30,120],b:[180,255]},{n:'Lime Green',r:[50,150],g:[180,255],b:[0,80]},{n:'Violet Purple',r:[120,200],g:[0,80],b:[180,255]},{n:'Golden Yellow',r:[200,255],g:[160,220],b:[0,60]},{n:'Coral Orange',r:[220,255],g:[80,160],b:[0,80]},{n:'Teal Cyan',r:[0,60],g:[160,220],b:[180,255]},{n:'Hot Pink',r:[220,255],g:[0,80],b:[120,200]}];
+function ri(a,b){return Math.floor(Math.random()*(b-a+1))+a;}
+function toHex(r,g,b){return'#'+[r,g,b].map(x=>x.toString(16).padStart(2,'0')).join('');}
+function startColorGame(){colorStreak=0;document.getElementById('color-streak').textContent='🔥 Streak: 0';document.getElementById('color-result').classList.remove('show');loadColorRound();}
+function loadColorRound(){
+  document.getElementById('color-result').classList.remove('show');
+  const c=cNames[Math.floor(Math.random()*cNames.length)];
+  const r=ri(c.r[0],c.r[1]),g=ri(c.g[0],c.g[1]),b=ri(c.b[0],c.b[1]);
+  colorCorrect=c.n; document.getElementById('color-display').style.background=toHex(r,g,b);
+  document.getElementById('color-rgb-display').textContent=`RGB(${r}, ${g}, ${b})`;
+  let opts=[c.n]; let pool=cNames.filter(x=>x.n!==c.n);
+  for(let i=0;i<5&&pool.length;i++) opts.push(pool.splice(Math.floor(Math.random()*pool.length),1)[0].n);
+  opts=opts.sort(()=>Math.random()-.5);
+  const ct=document.getElementById('color-options'); ct.innerHTML='';
+  opts.forEach(name=>{ const btn=document.createElement('button'); btn.className='color-opt'; btn.textContent=name; btn.onclick=()=>handleColorGuess(name,btn); ct.appendChild(btn); });
+}
+function handleColorGuess(name,btn){
+  document.querySelectorAll('.color-opt').forEach(o=>o.disabled=true);
+  document.getElementById('color-result').classList.add('show');
+  if(name===colorCorrect){colorStreak++;btn.style.background='rgba(0,255,136,.2)';btn.style.borderColor='var(--green)';document.getElementById('color-result-msg').style.color='var(--green)';document.getElementById('color-result-msg').textContent='✅ Correct! +1 Streak';document.getElementById('color-streak').textContent='🔥 Streak: '+colorStreak;}
+  else{colorStreak=0;btn.style.background='rgba(255,0,0,.2)';btn.style.borderColor='#ff4444';document.getElementById('color-result-msg').style.color='#ff6b6b';document.getElementById('color-result-msg').textContent=`❌ It was ${colorCorrect}. Streak reset!`;document.getElementById('color-streak').textContent='🔥 Streak: 0';}
+  setTimeout(loadColorRound,1600);
+}
+
+// ════════════════════════════════════
+// G6 — SPEED TYPING  (one-shot)
+// ════════════════════════════════════
+const tPhrases=["We are the stars of tonight","Katseye will perform at Ishkonic","Dance like nobody is watching you","The performance starts right now","Music makes the world go round","Feel the rhythm feel the beat"];
+let tPhrase='',tTimer=null,tLeft=30,tStarted=false,tDone=false,tErrors=0,tIdx=0,tTs=null;
+
+function initTypeGame() {
+  // If already done, just make sure results screen is shown
+  if(tDone){
+    document.getElementById('type-active-area').style.display='none';
+    document.getElementById('type-locked').classList.add('show');
+    document.getElementById('type-results-screen').classList.add('show');
+    return;
+  }
+  // Fresh start
+  document.getElementById('type-locked').classList.remove('show');
+  document.getElementById('type-results-screen').classList.remove('show');
+  document.getElementById('type-active-area').style.display='block';
+  clearInterval(tTimer);
+  tStarted=false; tIdx=0; tErrors=0; tLeft=30; tTs=null;
+  tPhrase=tPhrases[Math.floor(Math.random()*tPhrases.length)];
+  document.getElementById('type-input').value='';
+  document.getElementById('type-input').disabled=false;
+  document.getElementById('type-wpm').textContent='—';
+  document.getElementById('type-acc').textContent='—';
+  document.getElementById('type-time').textContent='30';
+  renderTD(); document.getElementById('type-input').focus();
+}
+function renderTD(){
+  document.getElementById('type-display').innerHTML=tPhrase.split('').map((c,i)=>`<span class="type-char ${i===0?'current':'pending'}">${c}</span>`).join('');
+}
+function handleType(){
+  if(tDone) return;
+  const inp=document.getElementById('type-input'), v=inp.value;
+  if(!tStarted&&v.length>0){ tStarted=true; tTs=Date.now(); tTimer=setInterval(()=>{ tLeft--; document.getElementById('type-time').textContent=tLeft; if(tLeft<=0){clearInterval(tTimer);finishType();} },1000); }
+  tIdx=v.length; tErrors=0;
+  for(let i=0;i<v.length&&i<tPhrase.length;i++) if(v[i]!==tPhrase[i]) tErrors++;
+  if(tStarted&&tTs){ const el=(Date.now()-tTs)/1000/60; const wds=v.trim().split(' ').filter(Boolean).length; document.getElementById('type-wpm').textContent=el>0?Math.round(wds/el):0; const ac=Math.round(((tIdx-tErrors)/Math.max(tIdx,1))*100); document.getElementById('type-acc').textContent=isNaN(ac)?100:Math.max(ac,0); }
+  document.getElementById('type-display').innerHTML=tPhrase.split('').map((c,i)=>{
+    let cl=i<v.length?(v[i]===c?'correct':'wrong'):i===v.length?'current':'pending';
+    return `<span class="type-char ${cl}">${c}</span>`;
+  }).join('');
+  if(v===tPhrase){clearInterval(tTimer);finishType();}
+}
+function finishType(){
+  if(tDone)return; tDone=true;
+  document.getElementById('type-input').disabled=true;
+  const el=tTs?Math.max((Date.now()-tTs)/1000,.1):30;
+  const wpm=Math.round((tPhrase.trim().split(' ').length/(el/60)));
+  const acc=Math.max(Math.round(((tIdx-tErrors)/Math.max(tIdx,1))*100),0);
+  const rating=wpm>=80?'🔥 Blazing Fast!':wpm>=60?'⚡ Super Speedy!':wpm>=40?'✨ Solid Typing!':wpm>=25?'👍 Getting There!':'🐢 Keep Practicing!';
+  document.getElementById('tr-wpm').textContent=wpm;
+  document.getElementById('tr-acc').textContent=acc+'%';
+  document.getElementById('tr-time').textContent=el.toFixed(1)+'s';
+  document.getElementById('tr-chars').textContent=tPhrase.length;
+  document.getElementById('tr-rating').textContent=rating;
+  document.getElementById('tr-phrase').textContent='"'+tPhrase+'"';
+  // Transition to results
+  document.getElementById('type-active-area').style.display='none';
+  document.getElementById('type-locked').classList.add('show');
+  document.getElementById('type-results-screen').classList.add('show');
+}
+
+// ════════════════════════════════════
+// G7 — GUESS THE ARTIST
+// ════════════════════════════════════
+const artistQ=[
+  {a:'Katseye',    l:'"Step into the light, we were born to shine\nThis is our moment, this is our time\nWe are the debut, hear us roar tonight"',         opts:['Katseye','NewJeans','aespa','ITZY']},
+  {a:'LE SSERAFIM',l:'"I\'m not afraid of you anymore\nAntifragile, I grow stronger in the storm\nNothing can break what was forged in fire and war"',    opts:['LE SSERAFIM','IVE','BLACKPINK','TWICE']},
+  {a:'BLACKPINK',  l:'"How you like that, shape of you\nDon\'t know how you like that, look at you now\nBack like a brand new, look at me now"',           opts:['BLACKPINK','aespa','Katseye','LE SSERAFIM']},
+  {a:'NewJeans',   l:'"Hype boy, hype boy, wanna be your hype boy\nYou\'re my one and only, I\'m falling for you baby\nCan\'t stop thinking about you"',  opts:['NewJeans','IVE','ITZY','TWICE']},
+  {a:'IVE',        l:'"Love dive, love dive, love dive into you\nI\'m falling so deep, what am I to do?\nCan\'t stop this feeling burning all the way through"', opts:['IVE','NewJeans','aespa','BLACKPINK']},
+  {a:'aespa',      l:'"Next level, reach the sky\nPushing every single limit gonna fly so high\nWe are the future, step into the light tonight"',         opts:['aespa','Katseye','ITZY','LE SSERAFIM']},
+  {a:'TWICE',      l:'"Like a fool, like a fool I fell for you again\nI should have seen it coming from a mile away\nBut your smile gets me every single day"', opts:['TWICE','NewJeans','IVE','Katseye']},
+  {a:'ITZY',       l:'"Dalla dalla, I know what I want\nDon\'t need your validation, gonna stand my ground\nThis is me and I love who I am right now"',   opts:['ITZY','BLACKPINK','aespa','LE SSERAFIM']},
+];
+let aIdx=0,aScore=0,aTimer=null,aLeft=15,aAnswered=false;
+
+function clearArtistTimer(){clearInterval(aTimer);aTimer=null;}
+function startArtistGame(){
+  aIdx=0;aScore=0;
+  document.getElementById('artist-result').classList.remove('show');
+  document.getElementById('artist-options').style.display='';
+  document.getElementById('artist-feedback').textContent='';
+  loadArtistRound();
+}
+function loadArtistRound(){
+  clearArtistTimer();
+  if(aIdx>=artistQ.length){
+    document.getElementById('artist-final').textContent=aScore;
+    document.getElementById('artist-result').classList.add('show');
+    document.getElementById('artist-options').style.display='none';
+    document.getElementById('artist-lyrics').textContent='🎉 Game over!';
+    document.getElementById('artist-score').textContent='Final: '+aScore+'/'+artistQ.length;
+    document.getElementById('artist-round').textContent='';
+    return;
+  }
+  aAnswered=false; aLeft=15;
+  const q=artistQ[aIdx];
+  document.getElementById('artist-feedback').textContent='';
+  document.getElementById('artist-lyrics').textContent=q.l;
+  document.getElementById('artist-score').textContent='Score: '+aScore;
+  document.getElementById('artist-round').textContent='Round '+(aIdx+1)+' / '+artistQ.length;
+  const bar=document.getElementById('artist-timer-bar');
+  bar.style.width='100%'; bar.classList.remove('warn');
+  document.getElementById('artist-timer-num').textContent='15s';
+
+  const ct=document.getElementById('artist-options'); ct.innerHTML='';
+  [...q.opts].sort(()=>Math.random()-.5).forEach(opt=>{
+    const btn=document.createElement('button'); btn.className='artist-opt'; btn.textContent=opt;
+    btn.onclick=()=>handleArtistGuess(opt,btn,q.a); ct.appendChild(btn);
+  });
+
+  aTimer=setInterval(()=>{
+    aLeft--;
+    const pct=(aLeft/15)*100;
+    bar.style.width=pct+'%';
+    document.getElementById('artist-timer-num').textContent=aLeft+'s';
+    if(aLeft<=5) bar.classList.add('warn');
+    if(aLeft<=0){
+      clearArtistTimer();
+      if(!aAnswered){
+        aAnswered=true;
+        document.getElementById('artist-feedback').style.color='#ff6b6b';
+        document.getElementById('artist-feedback').textContent="⏰ Time's up! It was "+q.a;
+        ct.querySelectorAll('.artist-opt').forEach(b=>{b.disabled=true;if(b.textContent===q.a)b.classList.add('correct');});
+        aIdx++; setTimeout(loadArtistRound,1800);
+      }
+    }
+  },1000);
+}
+function handleArtistGuess(name,btn,correct){
+  if(aAnswered)return; aAnswered=true; clearArtistTimer();
+  document.getElementById('artist-options').querySelectorAll('.artist-opt').forEach(b=>b.disabled=true);
+  document.getElementById('artist-timer-bar').style.width='0%';
+  if(name===correct){ aScore++; btn.classList.add('correct'); document.getElementById('artist-feedback').style.color='var(--green)'; document.getElementById('artist-feedback').textContent='✅ Correct!'; document.getElementById('artist-score').textContent='Score: '+aScore; }
+  else { btn.classList.add('wrong'); document.getElementById('artist-options').querySelectorAll('.artist-opt').forEach(b=>{if(b.textContent===correct)b.classList.add('correct');}); document.getElementById('artist-feedback').style.color='#ff6b6b'; document.getElementById('artist-feedback').textContent='❌ It was '+correct; }
+  aIdx++; setTimeout(loadArtistRound,1600);
+}
+
+// ════════════════════════════════════
+// QUIZ
+// ════════════════════════════════════
+const cSongs=new Set(['Debut','Gnarly Dance Break','Antifragile','Fearless','Little Miss','Work','Gabriela']);
+const allSongs=['Debut','Gnarly Dance Break','Antifragile','Fearless','Little Miss','Work','Gabriela','How You Like That','Next Level','Hype Boy','Super Shy','Gods Menu','Love Dive'].sort(()=>Math.random()-.5);
+let selSongs=new Set();
+function buildQuiz(){
+  const c=document.getElementById('quiz-options'); c.innerHTML='';
+  allSongs.forEach(song=>{ const d=document.createElement('div'); d.className='quiz-opt'; d.dataset.song=song; d.innerHTML=`<div class="quiz-checkbox"></div>${song}`; d.onclick=()=>toggleSong(song,d); c.appendChild(d); });
+}
+function toggleSong(song,el){ if(selSongs.has(song)){selSongs.delete(song);el.classList.remove('selected');el.querySelector('.quiz-checkbox').textContent='';} else{selSongs.add(song);el.classList.add('selected');el.querySelector('.quiz-checkbox').textContent='✓';} }
+function submitQuiz(){
+  const tc=[...selSongs].filter(s=>cSongs.has(s)).length;
+  document.getElementById('quiz-score-display').textContent=tc+'/7';
+  const msgs=[[0,"Better luck next time! 😅"],[2,"You know a few! 🎵"],[4,"Not bad at all! 🌟"],[6,"Almost perfect! 💜"],[7,"Perfect score! True Ishkonic fan! 🎉🔥"]];
+  let msg=msgs[0][1]; for(const[t,m]of msgs){if(tc>=t)msg=m;}
+  document.getElementById('quiz-result-text').textContent=`You got ${tc} out of 7 correct! ${msg}`;
+  document.getElementById('quiz-result').classList.add('show');
+  document.getElementById('quiz-result').scrollIntoView({behavior:'smooth',block:'center'});
+}
+function resetQuiz(){ selSongs.clear(); document.getElementById('quiz-result').classList.remove('show'); document.querySelectorAll('.quiz-opt').forEach(e=>{e.classList.remove('selected');e.querySelector('.quiz-checkbox').textContent='';}); }
+buildQuiz();
+</script>
+</body>
+</html>
